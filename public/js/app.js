@@ -18,19 +18,6 @@ const ctx = canvas.getContext("2d");
 //   window.scrollTo(0, document.body.scrollHeight);
 // });
 
-let number1 = Math.floor(Math.random() * 230);
-
-let number2 = Math.floor(Math.random() * 230);
-
-let number3 = Math.floor(Math.random() * 230);
-
-color = `rgb(${number1} ${number2} ${number3})`;
-
-let left = false;
-let right = false;
-let up = false;
-let down = false;
-
 const keys = {
   w: {
     pressed: false,
@@ -48,22 +35,34 @@ const keys = {
 
 const speed = 10;
 
+const playerInputs = [];
+
+let sequenceNumber = 0;
+
 setInterval(() => {
   if (keys.w.pressed) {
+    sequenceNumber++;
+    playerInputs.push({ sequenceNumber, dx: 0, dy: -speed });
     frontendPlayers[socket.id].y -= speed;
-    socket.emit("keydown", "KeyW");
+    socket.emit("keydown", { keycode: "KeyW", sequenceNumber });
   }
   if (keys.a.pressed) {
+    sequenceNumber++;
+    playerInputs.push({ sequenceNumber, dx: -speed, dy: 0 });
     frontendPlayers[socket.id].x -= speed;
-    socket.emit("keydown", "KeyA");
+    socket.emit("keydown", { keycode: "KeyA", sequenceNumber });
   }
   if (keys.s.pressed) {
+    sequenceNumber++;
+    playerInputs.push({ sequenceNumber, dx: 0, dy: speed });
     frontendPlayers[socket.id].y += speed;
-    socket.emit("keydown", "KeyS");
+    socket.emit("keydown", { keycode: "KeyS", sequenceNumber });
   }
   if (keys.d.pressed) {
+    sequenceNumber++;
+    playerInputs.push({ sequenceNumber, dx: speed, dy: 0 });
     frontendPlayers[socket.id].x += speed;
-    socket.emit("keydown", "KeyD");
+    socket.emit("keydown", { keycode: "KeyD", sequenceNumber });
   }
 }, 15);
 
@@ -71,6 +70,7 @@ window.addEventListener("keydown", (event) => {
   if (!frontendPlayers[socket.id]) return;
 
   switch (event.code) {
+    case "ArrowUp":
     case "KeyW":
       keys.w.pressed = true;
 
@@ -97,10 +97,11 @@ window.addEventListener("keyup", (event) => {
   if (!frontendPlayers[socket.id]) return;
 
   switch (event.code) {
+    case "ArrowUp":
     case "KeyW":
       keys.w.pressed = false;
-
       break;
+    case "ArrowLeft":
     case "KeyA":
       keys.a.pressed = false;
       break;
@@ -118,7 +119,7 @@ window.addEventListener("keyup", (event) => {
   }
 });
 
-const devicePixelRatio = window.devicePixelRatio * 2 || 2;
+const devicePixelRatio = window.devicePixelRatio * 1.5 || 2;
 
 canvas.width = window.innerWidth * devicePixelRatio;
 canvas.height = window.innerHeight * devicePixelRatio;
@@ -136,6 +137,70 @@ const x = canvas.width / 2;
 const y = canvas.height / 2;
 
 const frontendPlayers = {};
+const frontendProjectiles = {};
+
+addEventListener("click", (event) => {
+  const playerPosition = {
+    x: frontendPlayers[socket.id].x,
+    y: frontendPlayers[socket.id].y,
+  };
+
+  const angle = Math.atan2(
+    event.clientY * devicePixelRatio - playerPosition.y,
+    event.clientX * devicePixelRatio - playerPosition.x
+  );
+  //   const velocity = {
+  //     x: Math.cos(angle) * projectileSpeed,
+  //     y: Math.sin(angle) * projectileSpeed,
+  //   };
+
+  socket.emit("shoot", { x: playerPosition.x, y: playerPosition.y, angle });
+
+  //   frontendProjectiles.push(
+  //     new Projectile({
+  //       x: playerPosition.x,
+  //       y: playerPosition.y,
+  //       radius: 5,
+  //       color: "black",
+  //       velocity,
+  //     })
+  //   );
+
+  console.log(frontendProjectiles);
+});
+
+socket.on("connect", () => {
+  socket.emit("initCanvas", {
+    width: canvas.width,
+    height: canvas.height,
+    devicePixelRatio,
+  });
+});
+
+socket.on("updateProjectiles", (backendProjectiles) => {
+  for (const id in backendProjectiles) {
+    const backendProjectile = backendProjectiles[id];
+
+    if (!frontendProjectiles[id]) {
+      frontendProjectiles[id] = new Projectile({
+        x: backendProjectile.x,
+        y: backendProjectile.y,
+        radius: 10,
+        color: frontendPlayers[backendProjectile.playerId]?.color,
+        velocity: backendProjectile.velocity,
+      });
+    } else {
+      frontendProjectiles[id].x += backendProjectiles[id].velocity.x;
+      frontendProjectiles[id].y += backendProjectiles[id].velocity.y;
+    }
+  }
+
+  for (const id in frontendProjectiles) {
+    if (!backendProjectiles[id]) {
+      delete frontendProjectiles[id];
+    }
+  }
+});
 
 socket.on("updatePlayers", (backendPlayers) => {
   for (const id in backendPlayers) {
@@ -151,6 +216,26 @@ socket.on("updatePlayers", (backendPlayers) => {
     } else {
       frontendPlayers[id].x = backendPlayer.x;
       frontendPlayers[id].y = backendPlayer.y;
+
+      if (id === socket.id) {
+        frontendPlayers[id].x = backendPlayer.x;
+        frontendPlayers[id].y = backendPlayer.y;
+
+        const lastBackendInputIndex = playerInputs.findIndex((input) => {
+          return backendPlayer.sequenceNumber === input.sequenceNumber;
+        });
+
+        if (lastBackendInputIndex > -1)
+          playerInputs.splice(0, lastBackendInputIndex + 1);
+
+        playerInputs.forEach((input) => {
+          frontendPlayers[id].x += input.dx;
+          frontendPlayers[id].y += input.dy;
+        });
+      } else {
+        frontendPlayers[id].x = backendPlayer.x;
+        frontendPlayers[id].y = backendPlayer.y;
+      }
     }
   }
 
@@ -171,6 +256,16 @@ function animate() {
       frontendPlayer.draw();
     }
 
+    for (const id in frontendProjectiles) {
+      const frontendProjectile = frontendProjectiles[id];
+      frontendProjectile.draw();
+    }
+
+    // for (let i = frontendProjectiles.length - 1; i >= 0; i--) {
+    //   const frontendProjectile = frontendProjectiles[i];
+    //   frontendProjectile.update();
+    // }
+
     // ctx.beginPath();
     // ctx.arc(player.x, player.y, 10, 0, 2 * Math.PI);
     // ctx.fillStyle = player.color;
@@ -183,6 +278,9 @@ animate();
 function resize() {
   canvas.style.width = screen.width;
   canvas.style.height = screen.height;
+
+  canvas.width = window.innerWidth * devicePixelRatio;
+  canvas.height = window.innerHeight * devicePixelRatio;
 }
 
 window.addEventListener("resize", resize);
