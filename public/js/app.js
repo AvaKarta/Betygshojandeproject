@@ -3,6 +3,8 @@ let socket = io();
 const canvas = document.querySelector("canvas");
 const ctx = canvas.getContext("2d");
 
+console.log(document.cookie);
+
 // form.addEventListener("submit", function (e) {
 //   e.preventDefault();
 //   if (input.value) {
@@ -124,10 +126,9 @@ document.querySelector("#usernameForm").addEventListener("submit", (event) => {
   document.querySelector("#usernameForm").style.display = "none";
   console.log();
   socket.emit("initGame", {
-    username: document.querySelector("#usernameInput").value,
+    token: document.cookie.slice(6),
     width: canvas.width,
     height: canvas.height,
-    devicePixelRatio,
   });
 });
 

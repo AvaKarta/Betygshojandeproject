@@ -21,7 +21,11 @@ body {
   height: 100%;
   margin: 0;
   display: flex;
+  flex-direction: column;
   justify-content: center;
+  align-items: center;
+  color: white;
+  font-family: sans-serif;
 }
 
 canvas {
@@ -33,4 +37,65 @@ canvas {
   display: block;
   width: 1440px;
   height: 1080px;
+}
+
+#submit {
+  margin-top: 30px;
+  width: auto;
+}
+
+input {
+  width: 300px;
+  padding: 12px;
+  border-radius: 20px;
+  border: none;
+  background: #475569;
+  color: #cbd5e1;
+  margin-bottom: 20px;
+}
+
+button {
+  padding: 8px 20px;
+  border-radius: 100px;
+  border: none;
+  background-image: linear-gradient(
+    to right,
+    rgb(6, 182, 212),
+    rgb(59, 130, 246)
+  );
+  color: white;
+  cursor: pointer;
+}
+
+h1 {
+  margin-bottom: 20px;
+}
+
+.message {
+  background: rgb(190, 49, 49);
+  display: none;
+  width: 200px;
+  height: 200px;
+  text-align: center;
+  border: white solid;
+  margin-bottom: 20px;
+}
+
+#succses {
+  background: rgb(82, 165, 43);
+  height: 50px;
+  text-align: center;
+}
+
+a {
+  text-decoration: none;
+  width: 300px;
+  padding: 12px;
+  border-radius: 20px;
+  border: none;
+  background: #475569;
+  color: #cbd5e1;
+  margin-bottom: 20px;
+  margin-top: 30px;
+  width: auto;
 }

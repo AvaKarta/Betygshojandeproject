@@ -5,14 +5,108 @@ const http = require("http");
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server, { pingInterval: 1000, pingTimeout: 2000 });
+const jwt = require("jsonwebtoken");
+const mysql = require("mysql2/promise");
+const bcrypt = require("bcrypt");
+
+const bodyParser = require("body-parser");
+
+const cookies = require("cookie-parser");
+
+app.use(cookies());
+
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
 const publicPath = path.join(__dirname, "/../public/");
+const gamepath = path.resolve(__dirname + "/../public/html/spel.html");
 const port = process.env.PORT || 3000;
+
+app.get("/html/spel.html", async (req, res) => {
+  let authHeader = req.cookies.token;
+  console.log(authHeader);
+  if (authHeader === undefined) {
+    res.status(401);
+  }
+  let token = authHeader;
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, "MartinIsTheBest");
+  } catch (err) {
+    console.log(err);
+    res.status(401).send("Invalid auth token");
+    return;
+  }
+
+  if (decoded.authorization) {
+    res.sendFile(gamepath);
+  } else {
+    res.status(403);
+  }
+  res.status(403);
+});
+
 app.use(express.static(publicPath));
 
 // app.get("/", (req, res) => {
-//   res.sendFile(__dirname + "/public/html/index.html");
+// res.sendFile(__dirname + "/public/html/index.html");
 // });
+
+app.post("/loggain", async (req, res) => {
+  console.log(req.body);
+  if (req.body && req.body.username && req.body.password) {
+    try {
+      let connection = await getDBConnnection();
+      let sql = "SELECT * FROM spelarkonto WHERE username = ?";
+      let [results] = await connection.execute(sql, [req.body.username]);
+
+      const hashedPasswordFromDB = results[0].password;
+
+      const isPasswordValid = await bcrypt.compare(
+        req.body.password,
+        hashedPasswordFromDB
+      );
+
+      if (isPasswordValid) {
+        let payload = {
+          sub: results[0].id,
+          authorization: true,
+          username: req.body.username,
+        };
+        let token = jwt.sign(payload, "MartinIsTheBest", {
+          expiresIn: "1900s",
+        });
+
+        // res.json(token);
+        res
+          .cookie("token", token, { httpOnly: false, secure: true })
+          .status(200)
+          .send({ token });
+
+        return;
+      } else {
+        res.status(400).json({ error: "Invalid credentials" });
+        return;
+      }
+    } catch (err) {
+      res.status(500).send("Something went wrong");
+      return;
+    }
+  } else {
+    res.sendStatus(422);
+    return;
+  }
+});
+
+async function getDBConnnection() {
+  return await mysql.createConnection({
+    host: "localhost",
+    user: "root",
+    password: "",
+    database: "betygshojande",
+  });
+}
 
 let backendPlayers = {};
 let backendProjectiles = {};
@@ -51,13 +145,23 @@ io.on("connection", (socket) => {
     // console.log(backendProjectiles);
   });
 
-  socket.on("initGame", ({ username, width, height }) => {
+  socket.on("initGame", ({ token, width, height }) => {
+    console.log("|");
+    console.log(token);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, "MartinIsTheBest");
+    } catch (err) {
+      console.log(err);
+      return;
+    }
+
     backendPlayers[socket.id] = {
       x: 1440 / 2,
       y: 965,
       color: `hsl(${360 * Math.random()}, 100%, 50%)`,
       sequenceNumber: 0,
-      username,
+      username: decoded.username,
     };
 
     //init canvas
@@ -67,6 +171,40 @@ io.on("connection", (socket) => {
     };
 
     backendPlayers[socket.id].radius = radius;
+  });
+
+  socket.on("skapaKonto", async ({ username, password }) => {
+    if (username.length <= 20 && password.length <= 50) {
+      // console.log("Det funkar!!");
+      try {
+        let connection = await getDBConnnection();
+        let sql =
+          "INSERT INTO `spelarkonto`( `username`, `password`,`color`) VALUES (?,?,?)";
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        const color = "Blue";
+
+        let [results] = await connection.execute(sql, [
+          username,
+          hashedPassword,
+          color,
+        ]);
+
+        // console.log(results);
+        let succses = true;
+        io.emit("succses", succses);
+        console.log("YES!!!");
+      } catch (err) {
+        if (err.errno === 1062) {
+          let errortype = 2;
+          io.emit("userError", errortype);
+        }
+      }
+    } else {
+      let errortype = 1;
+      io.emit("userError", errortype);
+    }
   });
 
   socket.on("disconnect", (reason) => {

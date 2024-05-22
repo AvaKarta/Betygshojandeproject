@@ -1,22 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="../css/style.css" />
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Skapa konto</title>
   </head>
   <body>
-    <h1>Skapa ett Konto</h1>
-    <div class="message" id="succses">Du har skapat ett konto!</div>
-    <div class="message" id="error">
-      Ditt användarnamn eller lösenord är för långt. Lösenord måste vara mindre
-      än 50 karaktärer och användernamn måste vara mindre än 20 karaktärer
-    </div>
+    <h1>Logga in</h1>
+    <div class="message" id="succses">Du är nu inloggad!</div>
+    <div class="message" id="error">fel användar uppgifter</div>
     <div class="message" id="error2">
       Användarnamnet finns redan. Välj ett annat användarnamn!
     </div>
-    <form id="skapakonto" action="" method="post">
+    <form id="skapakonto" action="../loggain" method="post">
       Username:<br />
       <input id="username" type="text" name="username" placeholder="Username" />
       <br />
@@ -30,7 +27,7 @@
       <br />
       <input id="submit" type="submit" value="Submit" />
     </form>
-    <a href="/html/loggain.html">Logga in</a>
+    <a href="/html/loggain.html">Skapa konto</a>
     <script src="/socket.io/socket.io.js"></script>
     <script src="js/skapakonto.js"></script>
   </body>
