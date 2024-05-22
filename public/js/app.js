@@ -33,7 +33,7 @@ const keys = {
   },
 };
 
-const speed = 10;
+const speed = 5;
 
 const playerInputs = [];
 
@@ -119,10 +119,24 @@ window.addEventListener("keyup", (event) => {
   }
 });
 
-const devicePixelRatio = window.devicePixelRatio * 1.5 || 2;
+document.querySelector("#usernameForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  document.querySelector("#usernameForm").style.display = "none";
+  console.log();
+  socket.emit("initGame", {
+    username: document.querySelector("#usernameInput").value,
+    width: canvas.width,
+    height: canvas.height,
+    devicePixelRatio,
+  });
+});
 
-canvas.width = window.innerWidth * devicePixelRatio;
-canvas.height = window.innerHeight * devicePixelRatio;
+const devicePixelRatio = window.devicePixelRatio || 1;
+
+canvas.width = 1440 * devicePixelRatio;
+canvas.height = 1080 * devicePixelRatio;
+
+ctx.scale(devicePixelRatio, devicePixelRatio);
 
 // socket.on("player", function (player) {
 //   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -140,14 +154,15 @@ const frontendPlayers = {};
 const frontendProjectiles = {};
 
 addEventListener("click", (event) => {
+  const { top, left } = canvas.getBoundingClientRect();
   const playerPosition = {
     x: frontendPlayers[socket.id].x,
     y: frontendPlayers[socket.id].y,
   };
 
   const angle = Math.atan2(
-    event.clientY * devicePixelRatio - playerPosition.y,
-    event.clientX * devicePixelRatio - playerPosition.x
+    event.clientY - top - playerPosition.y,
+    event.clientX - left - playerPosition.x
   );
   //   const velocity = {
   //     x: Math.cos(angle) * projectileSpeed,
@@ -167,14 +182,6 @@ addEventListener("click", (event) => {
   //   );
 
   console.log(frontendProjectiles);
-});
-
-socket.on("connect", () => {
-  socket.emit("initCanvas", {
-    width: canvas.width,
-    height: canvas.height,
-    devicePixelRatio,
-  });
 });
 
 socket.on("updateProjectiles", (backendProjectiles) => {
@@ -205,15 +212,47 @@ socket.on("updateProjectiles", (backendProjectiles) => {
 socket.on("updatePlayers", (backendPlayers) => {
   for (const id in backendPlayers) {
     const backendPlayer = backendPlayers[id];
-
+    playerHeight = canvas.height - Math.round(backendPlayer.y);
     if (!frontendPlayers[id]) {
       frontendPlayers[id] = new Player({
         x: backendPlayer.x,
         y: backendPlayer.y,
         radius: 20,
         color: backendPlayer.color,
+        username: backendPlayer.username,
       });
+
+      document.getElementById(
+        "playerLabels"
+      ).innerHTML += `<div data-id="${id}"  data-score="${playerHeight}" >${backendPlayer.username}: ${playerHeight} Meter</div>`;
     } else {
+      document.querySelector(
+        `div[data-id="${id}"]`
+      ).innerHTML = `${backendPlayer.username}: ${playerHeight} Meter`;
+
+      document
+        .querySelector(`div[data-id="${id}"]`)
+        .setAttribute("data-score", playerHeight);
+
+      const parentdiv = document.getElementById("playerLabels");
+
+      const childDivs = Array.from(parentdiv.querySelectorAll("div"));
+
+      childDivs.sort((a, b) => {
+        const scoreA = Number(a.getAttribute("data-score"));
+        const scoreB = Number(b.getAttribute("data-score"));
+
+        return scoreB - scoreA;
+      });
+
+      childDivs.forEach((div) => {
+        parentdiv.removeChild(div);
+      });
+
+      childDivs.forEach((div) => {
+        parentdiv.appendChild(div);
+      });
+
       frontendPlayers[id].x = backendPlayer.x;
       frontendPlayers[id].y = backendPlayer.y;
 
@@ -241,6 +280,13 @@ socket.on("updatePlayers", (backendPlayers) => {
 
   for (const id in frontendPlayers) {
     if (!backendPlayers[id]) {
+      const divToDelete = document.querySelector(`div[data-id="${id}"]`);
+      divToDelete.parentNode.removeChild(divToDelete);
+
+      if (id === socket.id) {
+        document.querySelector("#usernameForm").style.display = "block";
+      }
+
       delete frontendPlayers[id];
     }
   }
@@ -275,12 +321,12 @@ function animate() {
 
 animate();
 
-function resize() {
-  canvas.style.width = screen.width;
-  canvas.style.height = screen.height;
+// function resize() {
+//   canvas.style.width = screen.width;
+//   canvas.style.height = screen.height;
 
-  canvas.width = window.innerWidth * devicePixelRatio;
-  canvas.height = window.innerHeight * devicePixelRatio;
-}
+//   canvas.width = window.innerWidth * devicePixelRatio;
+//   canvas.height = window.innerHeight * devicePixelRatio;
+// }
 
-window.addEventListener("resize", resize);
+// window.addEventListener("resize", resize);

@@ -18,7 +18,7 @@ let backendPlayers = {};
 let backendProjectiles = {};
 let projectileId = 0;
 
-const speed = 10;
+const speed = 5;
 const projectileSpeed = 20;
 const gravity = 0.3;
 const radius = 10;
@@ -27,29 +27,11 @@ const projectileRadius = 5;
 io.on("connection", (socket) => {
   console.log("a user connected");
 
-  backendPlayers[socket.id] = {
-    x: 500 * Math.random(),
-    y: 500 * Math.random(),
-    color: `hsl(${360 * Math.random()}, 100%, 50%)`,
-    sequenceNumber: 0,
-  };
-
   io.emit("updatePlayers", backendPlayers);
 
   // console.log(backendPlayers);
 
-  socket.on("initCanvas", ({ width, height, devicePixelRatio }) => {
-    backendPlayers[socket.id].canvas = {
-      width,
-      height,
-    };
-
-    backendPlayers[socket.id].radius = radius;
-
-    if (devicePixelRatio > 1) {
-      backendPlayers[socket.id].radius = 2 * radius;
-    }
-  });
+  socket.on("initCanvas", ({ width, height, devicePixelRatio }) => {});
 
   socket.on("shoot", ({ x, y, angle }) => {
     projectileId++;
@@ -69,6 +51,24 @@ io.on("connection", (socket) => {
     // console.log(backendProjectiles);
   });
 
+  socket.on("initGame", ({ username, width, height }) => {
+    backendPlayers[socket.id] = {
+      x: 1440 / 2,
+      y: 965,
+      color: `hsl(${360 * Math.random()}, 100%, 50%)`,
+      sequenceNumber: 0,
+      username,
+    };
+
+    //init canvas
+    backendPlayers[socket.id].canvas = {
+      width,
+      height,
+    };
+
+    backendPlayers[socket.id].radius = radius;
+  });
+
   socket.on("disconnect", (reason) => {
     console.log(`user disconnected, Reason: ${reason}`);
     delete backendPlayers[socket.id];
@@ -76,7 +76,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("keydown", ({ keycode, sequenceNumber }) => {
-    // console.log(sequenceNumber);
+    const backendPlayer = backendPlayers[socket.id];
+
     backendPlayers[socket.id].sequenceNumber = sequenceNumber;
     switch (keycode) {
       case "KeyW":
@@ -99,6 +100,32 @@ io.on("connection", (socket) => {
       default:
         break;
     }
+
+    const playerSides = {
+      left: backendPlayer.x - backendPlayer.radius * 2,
+      right: backendPlayer.x + backendPlayer.radius * 2,
+      top: backendPlayer.y - backendPlayer.radius * 2,
+      bottom: backendPlayer.y + backendPlayer.radius * 2,
+    };
+
+    console.log(playerSides.bottom, playerSides.left);
+
+    if (playerSides.left < 0) {
+      backendPlayers[socket.id].x = backendPlayer.radius * 2;
+    }
+    if (playerSides.right > 1440) {
+      backendPlayers[socket.id].x = 1440 - backendPlayer.radius * 2;
+    }
+
+    if (playerSides.bottom > 985) {
+      backendPlayers[socket.id].y = 985 - backendPlayer.radius * 2;
+    }
+
+    // if (playerSides.bottom > 550 && playerSides.left < 385) {
+    //   console.log("crash");
+    //   backendPlayers[socket.id].y -= 5;
+    //   backendPlayers[socket.id].x += 5;
+    // }
   });
 
   socket.on("chat message", (msg) => {
