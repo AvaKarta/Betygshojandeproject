@@ -213,7 +213,7 @@ socket.on("updateProjectiles", (backendProjectiles) => {
 socket.on("updatePlayers", (backendPlayers) => {
   for (const id in backendPlayers) {
     const backendPlayer = backendPlayers[id];
-    playerHeight = canvas.height - Math.round(backendPlayer.y);
+
     if (!frontendPlayers[id]) {
       frontendPlayers[id] = new Player({
         x: backendPlayer.x,
@@ -225,15 +225,15 @@ socket.on("updatePlayers", (backendPlayers) => {
 
       document.getElementById(
         "playerLabels"
-      ).innerHTML += `<div data-id="${id}"  data-score="${playerHeight}" >${backendPlayer.username}: ${playerHeight} Meter</div>`;
+      ).innerHTML += `<div data-id="${id}"  data-score="${backendPlayers[id].score}" >${backendPlayer.username}: ${backendPlayers[id].score} Score</div>`;
     } else {
       document.querySelector(
         `div[data-id="${id}"]`
-      ).innerHTML = `${backendPlayer.username}: ${playerHeight} Meter`;
+      ).innerHTML = `${backendPlayer.username}: ${backendPlayers[id].score} Score`;
 
       document
         .querySelector(`div[data-id="${id}"]`)
-        .setAttribute("data-score", playerHeight);
+        .setAttribute("data-score", backendPlayers[id].score);
 
       const parentdiv = document.getElementById("playerLabels");
 

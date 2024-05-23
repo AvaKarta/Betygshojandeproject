@@ -125,8 +125,6 @@ io.on("connection", (socket) => {
 
   // console.log(backendPlayers);
 
-  socket.on("initCanvas", ({ width, height, devicePixelRatio }) => {});
-
   socket.on("shoot", ({ x, y, angle }) => {
     projectileId++;
 
@@ -145,7 +143,15 @@ io.on("connection", (socket) => {
     // console.log(backendProjectiles);
   });
 
-  socket.on("initGame", ({ token, width, height }) => {
+  async function getScore(username) {
+    const connection = await getDBConnnection();
+
+    let sql = `SELECT score FROM spelarstats WHERE username = "${username}"`;
+
+    return await connection.execute(sql);
+  }
+
+  socket.on("initGame", async ({ token, width, height }) => {
     console.log("|");
     console.log(token);
     let decoded;
@@ -156,15 +162,19 @@ io.on("connection", (socket) => {
       return;
     }
 
+    let resultss = await getScore(decoded.username);
+
+    console.log(resultss[0][0].score);
+
     backendPlayers[socket.id] = {
       x: 1440 / 2,
       y: 965,
       color: `hsl(${360 * Math.random()}, 100%, 50%)`,
       sequenceNumber: 0,
       username: decoded.username,
+      score: resultss[0][0].score,
     };
 
-    //init canvas
     backendPlayers[socket.id].canvas = {
       width,
       height,
@@ -181,6 +191,9 @@ io.on("connection", (socket) => {
         let sql =
           "INSERT INTO `spelarkonto`( `username`, `password`,`color`) VALUES (?,?,?)";
 
+        let sql2 =
+          "INSERT INTO `spelarstats`( `username`, `score`,`time`) VALUES (?,?,?)";
+
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
         const color = "Blue";
@@ -190,6 +203,8 @@ io.on("connection", (socket) => {
           hashedPassword,
           color,
         ]);
+
+        let [results2] = await connection.execute(sql2, [username, 0, 0]);
 
         // console.log(results);
         let succses = true;
@@ -246,7 +261,7 @@ io.on("connection", (socket) => {
       bottom: backendPlayer.y + backendPlayer.radius * 2,
     };
 
-    console.log(playerSides.bottom, playerSides.left);
+    // console.log(playerSides.bottom, playerSides.left);
 
     if (playerSides.left < 0) {
       backendPlayers[socket.id].x = backendPlayer.radius * 2;
@@ -270,6 +285,15 @@ io.on("connection", (socket) => {
     io.emit("chat message", msg);
   });
 });
+
+async function saveScore(username, score) {
+  const connection = await getDBConnnection();
+
+  let sql = `UPDATE spelarstats SET score = ${score} WHERE username = '${username}'`;
+
+  await connection.execute(sql);
+  return;
+}
 
 setInterval(() => {
   for (const id in backendProjectiles) {
@@ -301,8 +325,14 @@ setInterval(() => {
         distance < projectileRadius + backendPlayer.radius &&
         backendProjectiles[id].playerId != playerId
       ) {
+        saveScore(
+          backendPlayers[playerId].username,
+          backendPlayers[playerId].score
+        );
+        backendPlayers[backendProjectiles[id].playerId].score += 1;
         delete backendProjectiles[id];
         delete backendPlayers[playerId];
+
         break;
       }
     }
