@@ -280,10 +280,6 @@ io.on("connection", (socket) => {
     //   backendPlayers[socket.id].x += 5;
     // }
   });
-
-  socket.on("chat message", (msg) => {
-    io.emit("chat message", msg);
-  });
 });
 
 async function saveScore(username, score) {
