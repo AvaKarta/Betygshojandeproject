@@ -274,6 +274,10 @@ io.on("connection", (socket) => {
       backendPlayers[socket.id].y = 985 - backendPlayer.radius * 2;
     }
 
+    if (playerSides.top < 0) {
+      backendPlayers[socket.id].y = backendPlayer.radius * 2;
+    }
+
     // if (playerSides.bottom > 550 && playerSides.left < 385) {
     //   console.log("crash");
     //   backendPlayers[socket.id].y -= 5;
